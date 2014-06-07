@@ -1,0 +1,26 @@
+Rules for all Servers {
+    if commitIndex > lastApplied {
+        * increment lastApplied
+        * apply log[lastApplied] to state machine
+    }
+
+    if request.Term > currentTerm || response.Term > > currentTerm {
+        * currentTerm = T
+        * convert to follower
+    }
+}
+
+Rules for Followers {
+    for {
+        case message:
+          * Respond to AppendEntries.
+          * RPC from leaders.
+          * grant vote to candidate.
+          <reload timeout>
+        case election-timeout:
+          * convert to candidate
+    }
+}
+
+- Election timeouts when there is no,
+  AppendEntries, RPC from current leader, granting vote to candidate.

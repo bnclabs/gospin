@@ -1,0 +1,51 @@
+Consensus algorithms for practical systems typically have the following
+properties:
+
+* They ensure safety (never returning an incorrect result) under all
+  non-Byzantine conditions, including network delays, partitions, and packet
+  loss, duplication, and reordering.
+* They are fully functional (available) as long as any majority of the servers
+  are operational and can communicate with each other and with clients. Thus,
+  a typical cluster of five servers can tolerate the failure of any two
+  servers. Servers are assumed to fail by stopping; they may later recover
+  from state on stable storage and rejoin the cluster.
+* They do not depend on timing to ensure the consistency of the logs:
+  faulty clocks and extreme message delays can, at worst, cause availability
+  problems.
+* In the common case, a command can complete as soon as any majority of the
+  cluster has responded to a single round of remote procedure calls; a
+  minority of slow servers need not impact overall system performance.
+
+Pieces in raft:
+
+ - leader election
+ - log replication
+ - safety
+ - membership changes, also configuration changes.
+
+Log replication:
+
+ - a log of request is maintained by every raft-node.
+ - every log _eventually_ contains the same requests in the same order.
+ - logs are not allowed to have holes.
+ - must be safe under all conditions and available under typical operating
+   conditions.
+
+Raft properties:
+
+ - Election Safety, at most one leader can be elected in a given term.
+ - Leader Append-Only, a leader never overwrites or deletes entries in its log
+   it only appends new entries.
+ - Log Matching, if two logs contain an entry with the same index and term, then
+   the logs are identical in all entries up through the given index.
+ - Leader Completeness, if a log entry is committed in a given term, then that
+   entry will be present in the logs of the leaders for all higher-numbered
+   terms.
+ - State Machine Safety, if a server has applied a log entry at a given index
+   to its state machine, no other server will ever apply a different log entry
+   for the same index.
+
+Notes:
+
+conflicts with advice given by Lampson: “More nondeterminism is bet- ter,
+because it allows more implementations [19].”
