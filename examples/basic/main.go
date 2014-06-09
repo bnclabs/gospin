@@ -17,7 +17,7 @@ var options struct {
 	trace bool
 	debug bool
 	host  string
-	port  string
+	port  int
 	join  string
 }
 
@@ -25,7 +25,7 @@ func init() {
 	flag.BoolVar(&options.trace, "trace", false, "Raft trace debugging")
 	flag.BoolVar(&options.debug, "debug", false, "Raft debugging")
 	flag.StringVar(&options.host, "h", "localhost", "hostname")
-	flag.StringVar(&options.port, "p", "4001", "port")
+	flag.IntVar(&options.port, "p", 4001, "port")
 	flag.StringVar(&options.join, "join", "", "host:port of leader to join")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data-path> \n", os.Args[0])
@@ -48,13 +48,16 @@ func main() {
 		log.Fatal("Data path argument required")
 	}
 	path := flag.Arg(0)
-	if err := os.MkdirAll(path, 0744); err != nil {
-		log.Fatalf("Unable to create path: %v", err)
-	}
 	log.SetFlags(log.LstdFlags)
 
 	connAddr := fmt.Sprintf("%v:%v", options.host, options.port)
-	lis, _, fsd := startServer(path, connAddr, options.host, options.port)
+	port := fmt.Sprintf("%d", options.port)
+	lis, _, fsd := startServer(path, connAddr, options.host, port)
+	if options.trace {
+		fsd.SetLogLevel(raft.Trace)
+	} else if options.debug {
+		fsd.SetLogLevel(raft.Debug)
+	}
 
 	client := failsafe.NewSafeDictClient("http://" + connAddr)
 	CAS, err := client.GetCAS()
@@ -73,29 +76,23 @@ func main() {
 	lis.Close()
 }
 
-func startServer(path, connAddr, host, port string) (net.Listener, *http.Server, *failsafe.Server) {
+func startServer(path, connAddr, host,
+	port string) (lis net.Listener, httpd *http.Server, fsd *failsafe.Server) {
+
+	var err error
+
 	mux := http.NewServeMux()
-	httpd := &http.Server{
+	httpd = &http.Server{
 		Addr:    connAddr,
 		Handler: mux,
 	}
-	lis, err := net.Listen("tcp", connAddr)
-	if err != nil {
+	if lis, err = net.Listen("tcp", connAddr); err != nil {
 		log.Fatal(err)
 	}
 
-	fsd, err := failsafe.NewServer(path, host, port, mux)
-	if err != nil {
+	if fsd, err = failsafe.NewServer(path, host, port, mux); err != nil {
 		log.Fatal(err)
 	}
-	if options.trace {
-		fsd.SetLogLevel(raft.Trace)
-		log.Print("trace debugging enabled.")
-	} else if options.debug {
-		fsd.SetLogLevel(raft.Debug)
-		log.Print("debugging enabled.")
-	}
-
 	fsd.Install(options.join)
 
 	// Server routine

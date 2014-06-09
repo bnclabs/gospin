@@ -79,6 +79,7 @@ func NewServer(path, host, port string, mux raft.HTTPMuxer) (s *Server, err erro
 func (s *Server) SetLogLevel(level int) {
 	logLevel = level
 	raft.SetLogLevel(level)
+	s.traceln("log level set to", level)
 }
 
 func (s *Server) GetStats() Stats {
@@ -122,6 +123,7 @@ func (s *Server) Install(leader string) (err error) {
 
 	} else {
 		log.Println("Recovered from log")
+		time.Sleep(1 * time.Second) // wait for it to become leader
 	}
 
 	s.mux.HandleFunc("/dict", s.dbHandler)

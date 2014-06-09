@@ -20,6 +20,7 @@ var options struct {
 	host  string
 	port  int
 	join  string
+	nodes int
 }
 
 func init() {
@@ -28,8 +29,9 @@ func init() {
 	flag.StringVar(&options.host, "h", "localhost", "hostname")
 	flag.IntVar(&options.port, "p", 4001, "port")
 	flag.StringVar(&options.join, "join", "", "host:port of leader to join")
+	flag.IntVar(&options.nodes, "nodes", 4, "number nodes in the cluster")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data-path> \n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data-path-dir> \n", os.Args[0])
 		flag.PrintDefaults()
 	}
 }
@@ -49,27 +51,28 @@ func main() {
 		log.Fatal("Data path argument required")
 	}
 	log.SetFlags(log.LstdFlags)
-	nodeCount := 4
 
-	leader := fmt.Sprintf("%s:%d", options.host, options.port)
-	path := flag.Arg(0)
-	paths := setupPaths(path, nodeCount)
-	lis, _, fsd := startServer(paths[0], "", options.host, options.port)
+	host, path := options.host, flag.Arg(0)
+	addrs, paths, ports := setupNodes(path)
 
-	listeners := make([]net.Listener, 0, nodeCount-1)
-	daemons := make([]*failsafe.Server, 0, nodeCount-1)
-	for i := 1; i < nodeCount; i++ {
-		host, port := options.host, options.port+i
-		lis, _, fsd := startServer(paths[i], leader, host, port)
-		listeners = append(listeners, lis)
-		daemons = append(daemons, fsd)
+	listeners := make([]net.Listener, options.nodes)
+	daemons := make([]*failsafe.Server, options.nodes)
+
+	// leader
+	leaderAddr := addrs[0]
+	listeners[0], _, daemons[0] = startServer(paths[0], "", host, ports[0])
+
+	// followers
+	for i := 1; i < options.nodes; i++ {
+		lis, _, fsd := startServer(paths[i], leaderAddr, host, ports[i])
+		listeners[i] = lis
+		daemons[i] = fsd
 	}
-	fmt.Println(lis, fsd, listeners, daemons)
 
-	client := failsafe.NewSafeDictClient("http://" + leader)
+	client := failsafe.NewSafeDictClient("http://" + leaderAddr)
 	CAS, err := client.GetCAS()
 	handleError(err)
-	fmt.Printf("%v, Got initial CAS %v\n", leader, CAS)
+	fmt.Printf("Got initial CAS %v\n", CAS)
 
 	for {
 		CAS, err = client.SetCAS("/eyeColor", "brown", CAS)
@@ -132,21 +135,15 @@ func handleError(err error) {
 	}
 }
 
-func setupPaths(path string, count int) []string {
-	if err := os.RemoveAll(path); err != nil {
-		log.Fatalf("Unable to remove path %v: %v", path, err)
+func setupNodes(pathdir string) ([]string, []string, []int) {
+	addrs := make([]string, 0, options.nodes)
+	paths := make([]string, 0, options.nodes)
+	ports := make([]int, 0, options.nodes)
+	for i := 0; i < options.nodes; i++ {
+		path := filepath.Join(pathdir, fmt.Sprintf("%v", i))
+		addrs = append(addrs, fmt.Sprintf("%s:%d", options.host, options.port))
+		paths = append(paths, path)
+		ports = append(ports, options.port+i)
 	}
-	if err := os.MkdirAll(path, 0744); err != nil {
-		log.Fatalf("Unable to create path %v: %v", path, err)
-	}
-
-	paths := make([]string, 0, count)
-	for i := 0; i < count; i++ {
-		serverPath := filepath.Join(path, fmt.Sprintf("%v", i))
-		if err := os.MkdirAll(serverPath, 0744); err != nil {
-			log.Fatalf("Unable to create path %v: %v", serverPath, err)
-		}
-		paths = append(paths, serverPath)
-	}
-	return paths
+	return addrs, paths, ports
 }
