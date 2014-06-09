@@ -3,9 +3,9 @@
 package failsafe
 
 import (
-    "path/filepath"
+	"path/filepath"
 )
 
 func snapshotFile(path string) string {
-    return filepath.Join(path, "safedict.snapshot")
+	return filepath.Join(path, "safedict.snapshot")
 }
