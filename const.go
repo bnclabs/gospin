@@ -1,1 +1,3 @@
+// Specifies constants.
+
 package failsafe

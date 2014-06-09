@@ -1,25 +1,28 @@
 package failsafe
 
 import (
-    "github.com/goraft/raft"
+	"github.com/goraft/raft"
 )
 
+// DeleteCommand to delete a field from SafeDict.
 type DeleteCommand struct {
-    Path  string      `json:"path"`
-    CAS   float64     `json:"CAS"`
+	Path string  `json:"path"`
+	CAS  float64 `json:"CAS"`
 }
 
+// NewDeleteCommand creates a new instance of DeleteCommand.
+// TODO: figure out a way to resue the command, to reduce GC overhead.
 func NewDeleteCommand(path string, cas float64) *DeleteCommand {
-    return &DeleteCommand{path, cas}
+	return &DeleteCommand{path, cas}
 }
 
-// The name of the command in the log.
+// CommandName implements raft.Command interface.
 func (c *DeleteCommand) CommandName() string {
-    return "delete"
+	return "delete"
 }
 
-// Writes a value to a key.
+// Apply implements raft.CommandApply interface.
 func (c *DeleteCommand) Apply(context raft.Context) (interface{}, error) {
-    sd := context.Server().Context().(*SafeDict)
-    return sd.Delete(c.Path, c.CAS)
+	sd := context.Server().Context().(*SafeDict)
+	return sd.Delete(c.Path, c.CAS)
 }
