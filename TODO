@@ -1,3 +1,4 @@
+- logging.
 - Save and Restore snapshots.
 - not-a-leader error response back and possibly the current leader as part
   response.

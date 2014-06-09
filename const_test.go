@@ -3,17 +3,17 @@
 package failsafe
 
 import (
-	"github.com/goraft/raft"
-	"io/ioutil"
-	"log"
-	"net"
-	"net/http"
-	"os"
-	"path/filepath"
+    "github.com/goraft/raft"
+    "io/ioutil"
+    "log"
+    "net"
+    "net/http"
+    "os"
+    "path/filepath"
 )
 
 var testdir = "testdata"
-var testRaftdir = filepath.Join(testdir, "server")
+var testRaftdir = filepath.Join(testdir, "server/0")
 var host = "localhost"
 var port = "4000"
 var servAddr = "http://" + host + ":" + port
@@ -27,32 +27,32 @@ var activeServers map[string][]interface{}
 
 // register commands for testing and start a server.
 func init() {
-	raft.RegisterCommand(&SetCommand{})
-	raft.RegisterCommand(&DeleteCommand{})
-	activeServers = make(map[string][]interface{})
+    raft.RegisterCommand(&SetCommand{})
+    raft.RegisterCommand(&DeleteCommand{})
+    activeServers = make(map[string][]interface{})
 }
 
 func startTestServer(servdir string) (*Server, net.Listener, *http.Server) {
-	if v, ok := activeServers[servdir]; ok {
-		return v[0].(*Server), v[1].(net.Listener), v[2].(*http.Server)
-	}
+    if v, ok := activeServers[servdir]; ok {
+        return v[0].(*Server), v[1].(net.Listener), v[2].(*http.Server)
+    }
 
-	os.RemoveAll(servdir)
-	log.SetOutput(ioutil.Discard)
-	mux := http.NewServeMux()
-	srv, err := NewServer(servdir, host, port, mux)
-	if err != nil {
-		log.Fatal(err)
-	}
-	srv.Install("")
+    os.RemoveAll(servdir)
+    log.SetOutput(ioutil.Discard)
+    mux := http.NewServeMux()
+    srv, err := NewServer(servdir, host, port, mux)
+    if err != nil {
+        log.Fatal(err)
+    }
+    srv.Install("")
 
-	daemon := &http.Server{Addr: lisAddr, Handler: mux}
+    daemon := &http.Server{Addr: lisAddr, Handler: mux}
 
-	lis, err := net.Listen("tcp", lisAddr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	go daemon.Serve(lis)
-	activeServers[servdir] = []interface{}{srv, lis, daemon}
-	return srv, lis, daemon
+    lis, err := net.Listen("tcp", lisAddr)
+    if err != nil {
+        log.Fatal(err)
+    }
+    go daemon.Serve(lis)
+    activeServers[servdir] = []interface{}{srv, lis, daemon}
+    return srv, lis, daemon
 }
