@@ -14,6 +14,12 @@ import (
 	"time"
 )
 
+// RegisterCommands with raft for failsafe package.
+func RegisterCommands() {
+	raft.RegisterCommand(&SetCommand{})
+	raft.RegisterCommand(&DeleteCommand{})
+}
+
 // Server is a combination of the Raft server and HTTP server which acts as
 // the transport, also provides APIs for local application (as method
 // recievers) and REST APIs for remote application to Set,Get,Delete
@@ -31,6 +37,8 @@ type Server struct {
 	stats     Stats
 }
 
+var logLevel int = 0
+
 // NewServer will instanstiate a new raft-server.
 func NewServer(path, host, port string, mux raft.HTTPMuxer) (s *Server, err error) {
 	if err = os.MkdirAll(path, 0700); err != nil {
@@ -44,7 +52,7 @@ func NewServer(path, host, port string, mux raft.HTTPMuxer) (s *Server, err erro
 		port:      port,
 		mux:       mux,
 		logPrefix: fmt.Sprintf("SafeDict server %q", path),
-		stats:     make(Stats),
+		stats:     NewStats(),
 	}
 
 	// Read existing name or generate a new one.
@@ -58,15 +66,23 @@ func NewServer(path, host, port string, mux raft.HTTPMuxer) (s *Server, err erro
 	}
 
 	// Read snapshot, if it exists
-	filename := snapshotFile(path)
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
+	var b []byte
+	if b, err = ioutil.ReadFile(snapshotFile(path)); err != nil {
 		b = nil
 	}
 	if s.db, err = NewSafeDict(b, true); err != nil {
 		panic(err)
 	}
 	return s, err
+}
+
+func (s *Server) SetLogLevel(level int) {
+	logLevel = level
+	raft.SetLogLevel(level)
+}
+
+func (s *Server) GetStats() Stats {
+	return s.stats
 }
 
 // Install to be called after NewServer(). This call will initialize and start
@@ -108,15 +124,11 @@ func (s *Server) Install(leader string) (err error) {
 		log.Println("Recovered from log")
 	}
 
-	log.Println("Initializing HTTP server")
-
 	s.mux.HandleFunc("/dict", s.dbHandler)
 	s.mux.HandleFunc("/join", s.joinHandler)
 	s.mux.HandleFunc("/leave", s.leaveHandler)
 
 	s.AddEventListeners()
-
-	log.Printf("%v, restored from snapshot CAS:%v\n", s.logPrefix, s.db.GetCAS())
 	return
 }
 
@@ -207,7 +219,28 @@ func (s *Server) selfJoin(leader string) error {
 	return nil
 }
 
-func RegisterCommands() {
-	raft.RegisterCommand(&SetCommand{})
-	raft.RegisterCommand(&DeleteCommand{})
+func (s *Server) debugf(v ...interface{}) {
+	if logLevel > raft.Debug {
+		format := v[0].(string)
+		log.Printf(format, v...)
+	}
+}
+
+func (s *Server) debugln(v ...interface{}) {
+	if logLevel > raft.Debug {
+		log.Println(v...)
+	}
+}
+
+func (s *Server) tracef(v ...interface{}) {
+	if logLevel > raft.Trace {
+		format := v[0].(string)
+		log.Printf(format, v...)
+	}
+}
+
+func (s *Server) traceln(v ...interface{}) {
+	if logLevel > raft.Trace {
+		log.Println(v...)
+	}
 }

@@ -2,11 +2,7 @@ package failsafe
 
 import (
 	"github.com/goraft/raft"
-	//"log"
 )
-
-// TODO:
-// - use this for, statistics.
 
 // AddEventListeners to add callback for raft server.
 func (s *Server) AddEventListeners() {
@@ -25,52 +21,39 @@ func (s *Server) AddEventListeners() {
 }
 
 func (s *Server) raftStateChange(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf("%v, raftStateChange (%T) %v:%v", s.logPrefix, v, v, pv)
+	s.stats["raftStateChange"] = s.stats["raftStateChange"].(int) + 1
 }
 
 func (s *Server) raftLeaderChange(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf("%v, raftLeaderChange (%T) %v:%v", s.logPrefix, v, v, pv)
+	s.stats["raftLeaderChange"] = s.stats["raftLeaderChange"].(int) + 1
 }
 
 func (s *Server) raftTermChange(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf("%v, raftTermChange (%T) %v:%v", s.logPrefix, v, v, pv)
+	s.stats["raftTermChange"] = s.stats["raftTermChange"].(int) + 1
 }
 
 func (s *Server) raftCommit(e raft.Event) {
-	//value := e.Value()
-	//index, term, name, _ := logEntry(value.(*raft.LogEntry))
-	//log.Printf("%v, raftCommit %v, %v, %v", s.logPrefix, index, term, name)
+	s.stats["raftCommit"] = s.stats["raftCommit"].(int) + 1
 }
 
 func (s *Server) raftAddPeer(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf("%v, raftAddPeer (%T) %v:%v", s.logPrefix, v, v, pv)
+	s.stats["raftAddPeer"] = s.stats["raftAddPeer"].(int) + 1
 }
 
 func (s *Server) raftRemovePeer(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf("%v, raftRemovePeer (%T) %v:%v", s.logPrefix, v, v, pv)
+	s.stats["raftRemovePeer"] = s.stats["raftRemovePeer"].(int) + 1
 }
 
 func (s *Server) raftHeartbeat(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf("%v, raftHeartbeat (%T) %v:%v", s.logPrefix, v, v, pv)
+	s.stats["raftHeartbeat"] = s.stats["raftHeartbeat"].(int) + 1
 }
 
 func (s *Server) raftHeartbeatInterval(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf("%v, raftHeartbeatInterval (%T) %v:%v", s.logPrefix, v, v, pv)
+	v := s.stats["raftHeartbeatInterval"].(int) + 1
+	s.stats["raftHeartbeatInterval"] = v
 }
 
 func (s *Server) raftElectionTimeoutThreshold(e raft.Event) {
-	//v, pv := e.Value(), e.PrevValue()
-	//log.Printf(
-	//    "%v, raftElectionTimeoutThreshold (%T) %v:%v", s.logPrefix, v, v, pv)
-}
-
-func logEntry(entry *raft.LogEntry) (uint64, uint64, string, []byte) {
-	return entry.Index(), entry.Term(), entry.CommandName(), entry.Command()
+	v := s.stats["raftElectionTimeoutThreshold"].(int) + 1
+	s.stats["raftElectionTimeoutThreshold"] = v
 }

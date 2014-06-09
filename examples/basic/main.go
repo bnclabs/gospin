@@ -37,14 +37,6 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
-	if options.trace {
-		raft.SetLogLevel(raft.Trace)
-		log.Print("Raft trace debugging enabled.")
-	} else if options.debug {
-		raft.SetLogLevel(raft.Debug)
-		log.Print("Raft debugging enabled.")
-	}
-
 	rand.Seed(time.Now().UnixNano())
 
 	// Setup commands.
@@ -96,6 +88,14 @@ func startServer(path, connAddr, host, port string) (net.Listener, *http.Server,
 	if err != nil {
 		log.Fatal(err)
 	}
+	if options.trace {
+		fsd.SetLogLevel(raft.Trace)
+		log.Print("trace debugging enabled.")
+	} else if options.debug {
+		fsd.SetLogLevel(raft.Debug)
+		log.Print("debugging enabled.")
+	}
+
 	fsd.Install(options.join)
 
 	// Server routine

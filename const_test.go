@@ -33,12 +33,15 @@ func init() {
 }
 
 func startTestServer(servdir string) (*Server, net.Listener, *http.Server) {
+	log.SetOutput(ioutil.Discard)
 	if v, ok := activeServers[servdir]; ok {
 		return v[0].(*Server), v[1].(net.Listener), v[2].(*http.Server)
 	}
 
-	os.RemoveAll(servdir)
-	log.SetOutput(ioutil.Discard)
+	if err := os.RemoveAll(servdir); err != nil {
+		log.Fatal(err)
+	}
+
 	mux := http.NewServeMux()
 	srv, err := NewServer(servdir, host, port, mux)
 	if err != nil {

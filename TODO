@@ -1,6 +1,11 @@
 - logging.
-- Save and Restore snapshots.
+- Save and Restore snapshots. During Start/Shutdown and periodically.
 - not-a-leader error response back and possibly the current leader as part
   response.
 - benchmark memory and throughput
 - statistics.
+- document about "" and "/" path spec.
+- NewServer to support enable/disable CAS.
+
+- How to make use of raft libraries snapshot and compaction ?
+- when to use FlushCommitIndex() ?

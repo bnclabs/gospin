@@ -36,7 +36,7 @@ func (s *Server) leaveHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) dbHandler(w http.ResponseWriter, req *http.Request) {
-	log.Printf("%v, %v %q\n", s.logPrefix, req.Method, req.URL)
+	s.tracef("%v, %v %q\n", s.logPrefix, req.Method, req.URL)
 	switch req.Method {
 	case "HEAD":
 		w.Header().Set("ETag", fmt.Sprintf("%v", uint64(s.db.GetCAS())))
