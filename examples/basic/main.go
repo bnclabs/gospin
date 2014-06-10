@@ -12,19 +12,19 @@ import (
 )
 
 var options struct {
-    trace bool
-    debug bool
-    host  string
-    port  int
-    join  string
+    name     string
+    listAddr int
+    join     string
+    trace    bool
+    debug    bool
 }
 
 func init() {
+    flag.StringVar(&options.name, "name", "basic0", "server's unique name")
+    flag.StringVar(&options.listAddr, "s", "localhost:4001", "host:port listen")
+    flag.StringVar(&options.join, "join", "", "host:port of leader to join")
     flag.BoolVar(&options.trace, "trace", false, "Raft trace debugging")
     flag.BoolVar(&options.debug, "debug", false, "Raft debugging")
-    flag.StringVar(&options.host, "h", "localhost", "hostname")
-    flag.IntVar(&options.port, "p", 4001, "port")
-    flag.StringVar(&options.join, "join", "", "host:port of leader to join")
     flag.Usage = func() {
         fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data-path> \n", os.Args[0])
         flag.PrintDefaults()
@@ -47,11 +47,12 @@ func main() {
         flag.Usage()
         log.Fatal("Data path argument required")
     }
-    host, leader, path := options.host, options.join, flag.Arg(0)
+    listAddr := options.listAddr
+    name, leader, path := options.name, options.join, flag.Arg(0)
     log.SetFlags(log.LstdFlags)
 
     killch, quitch := make(chan []interface{}), make(chan []interface{})
-    failsafe.StartDemoServer(path, leader, host, options.port, quitch, killch)
+    failsafe.StartDemoServer(name, path, listAddr, leader, quitch, killch)
     time.Sleep(1*time.Second)
 
     connAddr := fmt.Sprintf("%v:%v", options.host, options.port)

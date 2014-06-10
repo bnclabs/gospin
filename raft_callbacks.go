@@ -2,7 +2,6 @@ package failsafe
 
 import (
     "github.com/goraft/raft"
-    "fmt"
     "time"
 )
 
@@ -24,22 +23,19 @@ func (s *Server) AddEventListeners() {
 
 func (s *Server) raftStateChange(e raft.Event) {
     state, oldState := e.Value().(string), e.PrevValue().(string)
-    name := s.raftServer.Name()
-    fmt.Printf("%v, changes state from %q to %q\n", name, oldState, state)
+    tracef("%v, changes state from %q to %q\n", s.logPrefix, oldState, state)
     s.stats["raftStateChange"] = s.stats["raftStateChange"].(int) + 1
 }
 
 func (s *Server) raftLeaderChange(e raft.Event) {
     leader, oldLeader := e.Value().(string), e.PrevValue().(string)
-    name := s.raftServer.Name()
-    fmt.Printf("%v, leader changed from %q to %q\n", name, oldLeader, leader)
+    tracef("%v, leader changed from %q to %q\n", s.logPrefix, oldLeader, leader)
     s.stats["raftLeaderChange"] = s.stats["raftLeaderChange"].(int) + 1
 }
 
 func (s *Server) raftTermChange(e raft.Event) {
     term, oldTerm := e.Value().(string), e.PrevValue().(string)
-    name := s.raftServer.Name()
-    fmt.Printf("%v, term changed from %q to %q\n", name, oldTerm, term)
+    tracef("%v, term changed from %q to %q\n", s.logPrefix, oldTerm, term)
     s.stats["raftTermChange"] = s.stats["raftTermChange"].(int) + 1
 }
 
@@ -49,15 +45,13 @@ func (s *Server) raftCommit(e raft.Event) {
 
 func (s *Server) raftAddPeer(e raft.Event) {
     peer := e.Value().(string)
-    name := s.raftServer.Name()
-    fmt.Printf("%v, add peer %q\n", name, peer)
+    tracef("%v, add peer %q\n", s.logPrefix, peer)
     s.stats["raftAddPeer"] = s.stats["raftAddPeer"].(int) + 1
 }
 
 func (s *Server) raftRemovePeer(e raft.Event) {
     peer := e.Value().(string)
-    name := s.raftServer.Name()
-    fmt.Printf("%v, add peer %q\n", name, peer)
+    tracef("%v, add peer %q\n", s.logPrefix, peer)
     s.stats["raftRemovePeer"] = s.stats["raftRemovePeer"].(int) + 1
 }
 
@@ -72,8 +66,7 @@ func (s *Server) raftHeartbeatInterval(e raft.Event) {
 
 func (s *Server) raftElectionTimeoutThreshold(e raft.Event) {
     elapsedTime := e.Value().(time.Duration)
-    name := s.raftServer.Name()
-    fmt.Printf("%v, elapsed time %v\n", name, elapsedTime)
+    tracef("%v, elapsed time %v\n", s.logPrefix, elapsedTime)
     v := s.stats["raftElectionTimeoutThreshold"].(int) + 1
     s.stats["raftElectionTimeoutThreshold"] = v
 }

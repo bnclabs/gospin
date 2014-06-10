@@ -25,16 +25,15 @@ func RegisterCommands() {
 // recievers) and REST APIs for remote application to Set,Get,Delete
 // failsafe data structure.
 type Server struct {
-    name       string
-    path       string
-    host       string
-    port       string
-    mux        raft.HTTPMuxer // mux can be used to chain HTTP handlers.
-    raftServer raft.Server
-    db         *SafeDict
+    name        string
+    path        string
+    listernAddr string
+    mux         raft.HTTPMuxer // mux can be used to chain HTTP handlers.
+    raftServer  raft.Server
+    db          *SafeDict
     // misc.
-    logPrefix string
-    stats     Stats
+    logPrefix   string
+    stats       Stats
 }
 
 type Context struct {
@@ -45,58 +44,55 @@ type Context struct {
 var logLevel int = 0
 
 // NewServer will instanstiate a new raft-server.
-func NewServer(path, host, port string, mux raft.HTTPMuxer) (s *Server, err error) {
+func NewServer(name, path, listernAddr string, mux raft.HTTPMuxer) (s *Server, err error) {
     if err = os.MkdirAll(path, 0700); err != nil {
         return nil, err
     }
-
-    nameFile := filepath.Join(path, "name")
     s = &Server{
-        path:      path,
-        host:      host,
-        port:      port,
-        mux:       mux,
-        logPrefix: fmt.Sprintf("SafeDict server %q", path),
-        stats:     NewStats(),
+        name:        name,
+        path:        path,
+        listernAddr: listernAddr,
+        mux:         mux,
+        logPrefix:   fmt.Sprintf("[failsafe.%v]", name),
+        stats:       NewStats(),
     }
 
-    // Read existing name or generate a new one.
-    if b, err := ioutil.ReadFile(nameFile); err == nil {
-        s.name = string(b)
-    } else {
-        s.name = fmt.Sprintf("%07x", rand.Int())[0:7]
-        if err = ioutil.WriteFile(nameFile, []byte(s.name), 0644); err != nil {
-            panic(err)
+    if s.name == "" {
+        nameFile := filepath.Join(path, "name")
+        if b, err := ioutil.ReadFile(nameFile); err == nil {
+            s.name = string(b)
+        } else {
+            s.name = fmt.Sprintf("%07x", rand.Int())[0:7]
+            err := ioutil.WriteFile(nameFile, []byte(s.name), 0644)
+            if err != nil {
+                log.Fatal(err)
+            }
         }
     }
 
     if s.db, err = NewSafeDict(nil, true); err != nil {
-        panic(err)
+        log.Fatal(err)
     }
-    return s, err
+    return s, nil
 }
 
+// SetLogLevel to trace or debug
 func SetLogLevel(level int) {
     logLevel = level
     raft.SetLogLevel(level)
 }
 
+// GetStats return statistics for this server node.
 func (s *Server) GetStats() Stats {
     return s.stats
 }
 
+// GetRaftserver return raft server instance associated with this server node.
 func (s *Server) GetRaftserver() raft.Server {
     return s.raftServer
 }
 
-func (s *Server) connectionString() string {
-    return fmt.Sprintf("http://%v:%v", s.host, s.port)
-}
-
-func (s *Server) ListenAddr() string {
-    return fmt.Sprintf("%v:%v", s.host, s.port)
-}
-
+// RemovePeers for a clean restart.
 func (s *Server) RemovePeers() {
     for name, _ := range s.raftServer.Peers() {
         s.raftServer.RemovePeer(name)
@@ -112,42 +108,42 @@ func (s *Server) Install(leader string) (err error) {
     connStr := s.connectionString()
     s.raftServer, err = raft.NewServer(s.name, s.path, trans, s.db, s, connStr)
     if err != nil {
-        log.Fatalf("%v, %v\n", s.path, err)
+        log.Fatalf("%v, %v\n", s.logPrefix, err)
     }
     name := s.raftServer.Name()
-    s.tracef("%s, initializing Raft Server\n", name)
+    tracef("%s, initializing Raft Server\n", s.logPrefix)
 
     trans.Install(s.raftServer, s)
 
     // Read snapshot.
     if s.raftServer.LoadSnapshot() != nil {
-        s.tracef("%v, loadingSnapshot %v\n", name, err)
+        tracef("%v, loadingSnapshot %v\n", s.logPrefix, err)
     }
     s.RemovePeers()
     s.raftServer.Start()
 
     if leader != "" { // Join to leader if specified.
-        s.tracef("%v, attempting to join leader %q\n", name, leader)
+        tracef("%v, attempting to join leader %q\n", s.logPrefix, leader)
         if !s.raftServer.IsLogEmpty() {
-            log.Fatalf("%v, cannot join with an existing log\n", s.path)
+            log.Fatalf("%v, cannot join with an existing log\n", s.logPrefix)
         }
         if err := s.selfJoin(leader); err != nil {
-            log.Fatalf("%v, %v\n", s.path, err)
+            log.Fatalf("%v, %v\n", s.logPrefix, err)
         }
 
     } else if s.raftServer.IsLogEmpty() {
         // Initialize the server by joining itself.
-        s.tracef("%v, initializing new cluster\n", name)
+        tracef("%v, initializing new cluster\n", s.logPrefix)
         _, err := s.raftServer.Do(&raft.DefaultJoinCommand{
             Name:             s.raftServer.Name(),
             ConnectionString: s.connectionString(),
         })
         if err != nil {
-            log.Fatalf("%v, %v\n", s.path, err)
+            log.Fatalf("%v, %v\n", s.logPrefix, err)
         }
 
     } else {
-        s.tracef("%v, recovered from log\n", name)
+        tracef("%v, recovered from log\n", name)
     }
 
     s.mux.HandleFunc("/dict", s.dbHandler)
@@ -171,7 +167,6 @@ func (s *Server) GetLeader() [2]string {
             return [2]string{name, leader.ConnectionString}
         }
     }
-    fmt.Println(s.raftServer.Leader(), s.raftServer.Peers())
     return [2]string{"", ""}
 }
 
@@ -249,27 +244,35 @@ func (s *Server) selfJoin(leader string) error {
     return nil
 }
 
-func (s *Server) debugf(v ...interface{}) {
+func (s *Server) connectionString() string {
+    return fmt.Sprintf("http://%v", s.listernAddr)
+}
+
+func (s *Server) listenAddr() string {
+    return s.listernAddr
+}
+
+func debugf(v ...interface{}) {
     if logLevel >= raft.Debug {
         format := v[0].(string)
         log.Printf(format, v[1:]...)
     }
 }
 
-func (s *Server) debugln(v ...interface{}) {
+func debugln(v ...interface{}) {
     if logLevel >= raft.Debug {
         log.Println(v...)
     }
 }
 
-func (s *Server) tracef(v ...interface{}) {
+func tracef(v ...interface{}) {
     if logLevel >= raft.Trace {
         format := v[0].(string)
         log.Printf(format, v[1:]...)
     }
 }
 
-func (s *Server) traceln(v ...interface{}) {
+func traceln(v ...interface{}) {
     if logLevel >= raft.Trace {
         log.Println(v...)
     }

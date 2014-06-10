@@ -14,10 +14,8 @@ import (
 
 var testdir = "testdata"
 var testRaftdir = filepath.Join(testdir, "server/0")
-var host = "localhost"
-var port = "4000"
-var servAddr = "http://" + host + ":" + port
-var lisAddr = host + ":" + port
+var listAddr = "localhost:4000"
+var servAddr = "http://" + listAddr
 var smallJSONfile = filepath.Join(testdir, "small.json")
 var smallJSON, _ = ioutil.ReadFile(smallJSONfile)
 var dummyFile = filepath.Join(testdir, "_dummy.json")
@@ -43,7 +41,7 @@ func startTestServer(servdir string) (*Server, net.Listener, *http.Server, error
     }
 
     mux := http.NewServeMux()
-    srv, err := NewServer(servdir, host, port, mux)
+    srv, err := NewServer("test", servdir, listAddr, mux)
     if err != nil {
         log.Fatal(err)
     }
@@ -51,9 +49,9 @@ func startTestServer(servdir string) (*Server, net.Listener, *http.Server, error
         return nil, nil, nil, err
     }
 
-    daemon := &http.Server{Addr: lisAddr, Handler: mux}
+    daemon := &http.Server{Addr: listAddr, Handler: mux}
 
-    lis, err := net.Listen("tcp", lisAddr)
+    lis, err := net.Listen("tcp", listAddr)
     if err != nil {
         log.Fatal(err)
     }

@@ -17,7 +17,7 @@ const (
 )
 
 func StartDemoServer(
-    path, leader, host string, port int,
+    name, path, listAddr, leader string,
     quitch chan<- []interface{},
     killch <-chan []interface{}) {
 
@@ -27,16 +27,14 @@ func StartDemoServer(
             if leader != "" {
                 //cleanServer(path)
             }
-            portStr  := fmt.Sprintf("%d", port)
-            connAddr := fmt.Sprintf("%v:%v", host, port)
             mux      := http.NewServeMux()
-            httpd    := &http.Server{Addr: connAddr, Handler: mux}
+            httpd    := &http.Server{Addr: listAddr, Handler: mux}
 
-            lis, err := net.Listen("tcp", connAddr)
+            lis, err := net.Listen("tcp", listAddr)
             if err != nil {
                 log.Fatal(path, err)
             }
-            fsd, err := NewServer(path, host, portStr, mux)
+            fsd, err := NewServer(name, path, listAddr, mux)
             if err != nil {
                 log.Fatal(path, err)
             }

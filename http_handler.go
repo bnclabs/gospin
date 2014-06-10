@@ -10,6 +10,12 @@ import (
 )
 
 func (s *Server) joinHandler(w http.ResponseWriter, req *http.Request) {
+    defer func() {
+        if r := recover(); r != nil {
+            log.Printf("%v, error: %v", s.logPrefix, r)
+        }
+    }()
+
     command := &raft.DefaultJoinCommand{}
 
     if err := json.NewDecoder(req.Body).Decode(&command); err != nil {
@@ -23,6 +29,12 @@ func (s *Server) joinHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) leaveHandler(w http.ResponseWriter, req *http.Request) {
+    defer func() {
+        if r := recover(); r != nil {
+            log.Printf("%v, error: %v", s.logPrefix, r)
+        }
+    }()
+
     command := &raft.DefaultLeaveCommand{}
 
     if err := json.NewDecoder(req.Body).Decode(&command); err != nil {
@@ -38,7 +50,13 @@ func (s *Server) leaveHandler(w http.ResponseWriter, req *http.Request) {
 func (s *Server) dbHandler(w http.ResponseWriter, req *http.Request) {
     var m map[string]interface{}
 
-    s.tracef("%v, %v %q\n", s.logPrefix, req.Method, req.URL)
+    defer func() {
+        if r := recover(); r != nil {
+            log.Printf("%v, error: %v", s.logPrefix, r)
+        }
+    }()
+
+    tracef("%v, %v %q\n", s.logPrefix, req.Method, req.URL)
     switch req.Method {
     case "HEAD":
         w.Header().Set("ETag", fmt.Sprintf("%v", uint64(s.db.GetCAS())))

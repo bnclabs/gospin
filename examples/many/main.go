@@ -17,24 +17,24 @@ import (
 )
 
 var options struct {
-    trace bool
-    debug bool
-    host  string
-    port  int
-    join  string
-    nodes int
+    name      string
+    listAddr  string
+    join      string
+    nodes     int
+    trace     bool
+    debug     bool
 }
 
 var smallJSON, _ = ioutil.ReadFile("./testdata/small.json")
 var ops = [4]string{"GETCAS", "GET", "SET", "DELETE"}
 
 func init() {
-    flag.BoolVar(&options.trace, "trace", false, "Raft trace debugging")
-    flag.BoolVar(&options.debug, "debug", false, "Raft debugging")
-    flag.StringVar(&options.host, "h", "localhost", "hostname")
-    flag.IntVar(&options.port, "p", 4001, "port")
+    flag.StringVar(&options.name, "name", "failsafe", "server's unique name")
+    flag.StringVar(&options.listAddr, "s", "localhost:4001", "host:port listen")
     flag.StringVar(&options.join, "join", "", "host:port of leader to join")
     flag.IntVar(&options.nodes, "nodes", 4, "number nodes in the cluster")
+    flag.BoolVar(&options.trace, "trace", false, "Raft trace debugging")
+    flag.BoolVar(&options.debug, "debug", false, "Raft debugging")
     flag.Usage = func() {
         fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data-path-dir> \n", os.Args[0])
         flag.PrintDefaults()
@@ -57,17 +57,18 @@ func main() {
         flag.Usage()
         log.Fatal("Data path argument required")
     }
-    host, path := options.host, flag.Arg(0)
+    namePrefix := options.name
+    listAddr, path := options.listAddr, flag.Arg(0)
     log.SetFlags(log.LstdFlags)
 
-    addrs, paths, ports := setupNodes(path)
+    names, addrs, paths, ports := setupNodes(namePrefix, path)
     quitch := make(chan []interface{})
 
     // leader
     leaderAddr := addrs[0]
     killchs := make([]chan []interface{}, 0, options.nodes)
     killch  := make(chan []interface{})
-    failsafe.StartDemoServer(paths[0], "", host, ports[0], quitch, killch)
+    failsafe.StartDemoServer(names[0], paths[0], listAddr, "", quitch, killch)
     killchs = append(killchs, killch)
     time.Sleep(1 * time.Second) // wait for it to become leader, in case.
 
@@ -84,7 +85,8 @@ func main() {
     // followers
     for i := 1; i < options.nodes; i++ {
         killch = make(chan []interface{})
-        failsafe.StartDemoServer(paths[i], leaderAddr, host, ports[i], quitch, killch)
+        failsafe.StartDemoServer(
+            names[i], paths[i], listAddr, leaderAddr, quitch, killch)
         killchs = append(killchs, killch)
     }
 
@@ -204,16 +206,18 @@ func handleError(path string, err error) {
     }
 }
 
-func setupNodes(pathdir string) ([]string, []string, []int) {
+func setupNodes(namePrefix, pathdir string) (names, addrs, paths, ports []string) {
+    names := make([]string, 0, options.nodes)
     addrs := make([]string, 0, options.nodes)
     paths := make([]string, 0, options.nodes)
     ports := make([]int, 0, options.nodes)
     for i := 0; i < options.nodes; i++ {
         path := filepath.Join(pathdir, fmt.Sprintf("%v", i))
+        names = append(names, fmt.Sprintf("%s%d", name, i))
         addrs = append(addrs, fmt.Sprintf("%s:%d", options.host, options.port))
         paths = append(paths, path)
         ports = append(ports, options.port+i)
     }
-    return addrs, paths, ports
+    return names, addrs, paths, ports
 }
 
