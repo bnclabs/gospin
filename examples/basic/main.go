@@ -1,113 +1,80 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"github.com/goraft/raft"
-	"github.com/prataprc/go-failsafe"
-	"log"
-	"math/rand"
-	"net"
-	"net/http"
-	"os"
-	"time"
+    "flag"
+    "fmt"
+    "github.com/goraft/raft"
+    "github.com/prataprc/go-failsafe"
+    "log"
+    "math/rand"
+    "os"
+    "time"
 )
 
 var options struct {
-	trace bool
-	debug bool
-	host  string
-	port  int
-	join  string
+    trace bool
+    debug bool
+    host  string
+    port  int
+    join  string
 }
 
 func init() {
-	flag.BoolVar(&options.trace, "trace", false, "Raft trace debugging")
-	flag.BoolVar(&options.debug, "debug", false, "Raft debugging")
-	flag.StringVar(&options.host, "h", "localhost", "hostname")
-	flag.IntVar(&options.port, "p", 4001, "port")
-	flag.StringVar(&options.join, "join", "", "host:port of leader to join")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data-path> \n", os.Args[0])
-		flag.PrintDefaults()
-	}
+    flag.BoolVar(&options.trace, "trace", false, "Raft trace debugging")
+    flag.BoolVar(&options.debug, "debug", false, "Raft debugging")
+    flag.StringVar(&options.host, "h", "localhost", "hostname")
+    flag.IntVar(&options.port, "p", 4001, "port")
+    flag.StringVar(&options.join, "join", "", "host:port of leader to join")
+    flag.Usage = func() {
+        fmt.Fprintf(os.Stderr, "Usage: %s [arguments] <data-path> \n", os.Args[0])
+        flag.PrintDefaults()
+    }
 }
 
 func main() {
-	flag.Parse()
-	log.SetFlags(0)
+    flag.Parse()
+    rand.Seed(time.Now().UnixNano())
+    if options.trace {
+        failsafe.SetLogLevel(raft.Trace)
+    } else if options.debug {
+        failsafe.SetLogLevel(raft.Debug)
+    }
 
-	rand.Seed(time.Now().UnixNano())
+    failsafe.RegisterCommands() // Setup commands.
 
-	// Setup commands.
-	failsafe.RegisterCommands()
+    // path
+    if flag.NArg() == 0 {
+        flag.Usage()
+        log.Fatal("Data path argument required")
+    }
+    host, leader, path := options.host, options.join, flag.Arg(0)
+    log.SetFlags(log.LstdFlags)
 
-	// Set the data directory.
-	if flag.NArg() == 0 {
-		flag.Usage()
-		log.Fatal("Data path argument required")
-	}
-	path := flag.Arg(0)
-	log.SetFlags(log.LstdFlags)
+    killch, quitch := make(chan []interface{}), make(chan []interface{})
+    failsafe.StartDemoServer(path, leader, host, options.port, quitch, killch)
+    time.Sleep(1*time.Second)
 
-	connAddr := fmt.Sprintf("%v:%v", options.host, options.port)
-	port := fmt.Sprintf("%d", options.port)
-	lis, _, fsd := startServer(path, connAddr, options.host, port)
-	if options.trace {
-		fsd.SetLogLevel(raft.Trace)
-	} else if options.debug {
-		fsd.SetLogLevel(raft.Debug)
-	}
+    connAddr := fmt.Sprintf("%v:%v", options.host, options.port)
+    client := failsafe.NewSafeDictClient("http://" + connAddr)
 
-	client := failsafe.NewSafeDictClient("http://" + connAddr)
-	CAS, err := client.GetCAS()
-	handleError(err)
-	fmt.Println("Got initial CAS", CAS)
+    CAS, err := client.GetCAS()
+    handleError(err)
+    fmt.Println("Got initial CAS", CAS)
 
-	CAS, err = client.SetCAS("/eyeColor", "brown", CAS)
-	handleError(err)
-	fmt.Println("Set /eyeColor gave nextCAS as", CAS)
+    CAS, err = client.SetCAS("/eyeColor", "brown", CAS)
+    handleError(err)
+    fmt.Println("Set /eyeColor gave nextCAS as", CAS)
 
-	value, CAS, err := client.Get("/eyeColor")
-	handleError(err)
-	fmt.Printf("Get /eyeColor returned %v with CAS %v\n", value, CAS)
+    value, CAS, err := client.Get("/eyeColor")
+    handleError(err)
+    fmt.Printf("Get /eyeColor returned %v with CAS %v\n", value, CAS)
 
-	fsd.Stop()
-	lis.Close()
-}
-
-func startServer(path, connAddr, host,
-	port string) (lis net.Listener, httpd *http.Server, fsd *failsafe.Server) {
-
-	var err error
-
-	mux := http.NewServeMux()
-	httpd = &http.Server{
-		Addr:    connAddr,
-		Handler: mux,
-	}
-	if lis, err = net.Listen("tcp", connAddr); err != nil {
-		log.Fatal(err)
-	}
-
-	if fsd, err = failsafe.NewServer(path, host, port, mux); err != nil {
-		log.Fatal(err)
-	}
-	fsd.Install(options.join)
-
-	// Server routine
-	go func() {
-		log.Printf("%s: http server starting ...\n", path)
-		err := httpd.Serve(lis) // serve until listener is closed.
-		if err != nil {
-			log.Printf("%s, error: %v\n", path, err)
-		}
-	}()
-	return lis, httpd, fsd
+    killch <- []interface{}{failsafe.DemoCmdQuit}
+    <-quitch
 }
 
 func handleError(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
+    if err != nil {
+        log.Fatal(err)
+    }
 }

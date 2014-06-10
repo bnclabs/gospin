@@ -1,0 +1,44 @@
+{
+    "id": 0,
+    "guid": "ab2e171d-7080-4ef0-9797-13a40efd692c",
+    "isActive": true,
+    "balance": "$3,804.78",
+    "picture": "http://placehold.it/32x32",
+    "age": 20,
+    "eyeColor": "brown",
+    "name": "Christensen Clayton",
+    "gender": "male",
+    "company": "PAPRICUT",
+    "email": "christensenclayton@papricut.com",
+    "phone": "+1 (877) 535-2277",
+    "address": "537 Wortman Avenue, Ernstville, Minnesota, 8878",
+    "about": "Aliqua Lorem sunt nulla fugiat duis mollit consectetur sint duis id consectetur. Voluptate in laboris qui dolor aliquip ad nisi cillum excepteur eiusmod ad ipsum. Eu Lorem esse pariatur non qui esse laboris. Sint pariatur tempor labore elit exercitation. Minim aliqua deserunt dolore veniam commodo qui pariatur ex ea ipsum. Lorem commodo sit deserunt cupidatat culpa et laboris officia dolore et aute mollit.\r\n",
+    "registered": "2014-05-12T19:45:16 -06:-30",
+    "latitude": -82.092304,
+    "longitude": 172.571509,
+    "tags": [
+      "officia",
+      "sunt",
+      "incididunt",
+      "aute",
+      "pariatur",
+      "consectetur",
+      "officia"
+    ],
+    "friends": [
+      {
+        "id": 0,
+        "name": "Paul Molina"
+      },
+      {
+        "id": 1,
+        "name": "Tanner Baldwin"
+      },
+      {
+        "id": 2,
+        "name": "Whitaker Wilson"
+      }
+    ],
+    "greeting": "Hello, Christensen Clayton! You have 7 unread messages.",
+    "favoriteFruit": "banana"
+}
