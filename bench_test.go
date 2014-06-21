@@ -1,7 +1,8 @@
 package failsafe
 
 import (
-	"github.com/dustin/go-jsonpointer"
+	"github.com/dustin/gojson"
+	"github.com/prataprc/go-jsonpointer"
 	"io/ioutil"
 	"testing"
 )
@@ -24,5 +25,12 @@ func BenchmarkJsonpointer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		jsonpointer.Find(mediumJSON, jptrs[i%l])
+	}
+}
+
+func BenchmarkGoJson(b *testing.B) {
+	m := map[string]interface{}{}
+	for i := 0; i < b.N; i++ {
+		json.Unmarshal(mediumJSON, &m)
 	}
 }

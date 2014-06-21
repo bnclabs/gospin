@@ -2,7 +2,7 @@ package failsafe
 
 import (
 	"fmt"
-	"github.com/dustin/go-jsonpointer"
+	"github.com/prataprc/go-jsonpointer"
 	"io/ioutil"
 	"os"
 	"reflect"
