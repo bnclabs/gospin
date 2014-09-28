@@ -3,20 +3,21 @@ package failsafe
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/prataprc/go-jsonpointer"
 	"sync"
+
+	"github.com/prataprc/go-jsonpointer"
 )
 
 // error codes
 
 // ErrorInvalidPath
-var ErrorInvalidPath = fmt.Errorf("errorInvalidPath")
+var ErrorInvalidPath = fmt.Errorf("safedict.errorInvalidPath")
 
 // ErrorInvalidType
-var ErrorInvalidType = fmt.Errorf("errorInvalidType")
+var ErrorInvalidType = fmt.Errorf("safedict.errorInvalidType")
 
 // ErrorInvalidCAS
-var ErrorInvalidCAS = fmt.Errorf("errorInvalidCAS")
+var ErrorInvalidCAS = fmt.Errorf("safedict.errorInvalidCAS")
 
 const nullCAS = float64(0)
 
@@ -44,7 +45,15 @@ func NewSafeDict(data interface{}, cas bool) (*SafeDict, error) {
 				return nil, err
 			}
 		}
+
+	case string:
+		if arg != "" {
+			if err := json.Unmarshal([]byte(arg), &sd.m); err != nil {
+				return nil, err
+			}
+		}
 	}
+
 	if cas {
 		sd.CAS = float64(1)
 	}
@@ -96,7 +105,7 @@ func (sd *SafeDict) Get(path string) (rv interface{}, CAS float64, err error) {
 }
 
 // Set value at the specified path, full json-pointer spec. is allowed. If CAS
-// is specified as nullCAS, CAS is ignored.
+// is specified as nullCAS, CAS is ignored. Set is an idempotent operation.
 func (sd *SafeDict) Set(path string, value interface{}, CAS float64) (nextCAS float64, err error) {
 	sd.mu.Lock()
 	defer sd.mu.Unlock()
@@ -105,24 +114,22 @@ func (sd *SafeDict) Set(path string, value interface{}, CAS float64) (nextCAS fl
 		return nullCAS, ErrorInvalidCAS
 	}
 
-	switch path {
-	case "":
+	if path == "" {
 		if m, ok := value.(map[string]interface{}); ok {
 			sd.m = m
 			return sd.incrementCAS(), nil
 		}
-		err = ErrorInvalidType
-
-	default:
-		if err = jsonpointer.Set(sd.m, path, value); err == nil {
-			return sd.incrementCAS(), nil
-		}
+		return nullCAS, ErrorInvalidType
+	}
+	if err = jsonpointer.Set(sd.m, path, value); err == nil {
+		return sd.incrementCAS(), nil
 	}
 	return nullCAS, err
 }
 
 // Delete value at the specified path, last segment shall always index
-// into json property. If CAS is specied as nullCAS, CAS is ignored.
+// into json property. If CAS is specied as nullCAS, CAS is ignored. Delete is
+// an idempotent operation.
 func (sd *SafeDict) Delete(path string, CAS float64) (nextCAS float64, err error) {
 	sd.mu.Lock()
 	defer sd.mu.Unlock()
@@ -131,15 +138,12 @@ func (sd *SafeDict) Delete(path string, CAS float64) (nextCAS float64, err error
 		return nullCAS, ErrorInvalidCAS
 	}
 
-	switch path {
-	case "":
+	if path == "" {
 		sd.m = nil
 		return sd.incrementCAS(), nil
-
-	default:
-		if err = jsonpointer.Delete(sd.m, path); err == nil {
-			return sd.incrementCAS(), nil
-		}
+	}
+	if err = jsonpointer.Delete(sd.m, path); err == nil {
+		return sd.incrementCAS(), nil
 	}
 	return nullCAS, err
 }

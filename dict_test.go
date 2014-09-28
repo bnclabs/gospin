@@ -1,7 +1,6 @@
 package failsafe
 
 import (
-	"fmt"
 	"github.com/prataprc/go-jsonpointer"
 	"io/ioutil"
 	"os"
@@ -9,44 +8,41 @@ import (
 	"testing"
 )
 
-var _ = fmt.Sprintf("dummy") // TODO: remove this later.
-
 func TestSafeDict(t *testing.T) {
 	// test with bytes
-	if _, err := NewSafeDict([]byte(`{"path": 10}`), true); err != nil {
-		t.Fatal("SafeDict expected to pass")
+	data := `{"path": 10}`
+	if _, err := NewSafeDict([]byte(data), true); err != nil {
+		t.Errorf("SafeDict on []byte(%v)", data)
 	}
 
 	// test with map
 	m := map[string]interface{}{"path": 10}
 	if _, err := NewSafeDict(m, true); err != nil {
-		t.Fatal("SafeDict expected to pass")
+		t.Errorf("SafeDict on map[string]interface{}(%v)", m)
 	}
 
 	// test for wrong input
-	if _, err := NewSafeDict([]byte(`{path: 10}`), true); err == nil {
-		t.Fatal("SafeDict expected error for wrong json doc")
+	data := `{path: 10}`
+	if _, err := NewSafeDict([]byte(data), true); err == nil {
+		t.Errorf("SafeDict expected to fail on []byte(%v)", m)
 	}
 
-	if sd, err := NewSafeDict([]byte(`{"path": 10}`), true); err != nil {
-		t.Fatal(err)
+	sd, _ := NewSafeDict([]byte(`{"path": 10}`), true)
+	if val, _, err := sd.Get("/path"); err != nil {
+		t.Errorf("On Get(`/path`) %v", err)
+	} else if val.(float64) != float64(10) {
+		t.Errorf("On Get(`/path`) return type %v", val)
 	} else {
+		if _, err := sd.Set("/path", float64(20), sd.GetCAS()); err != nil {
+			t.Errorf("On Set(`/Path`, float64(20)) %v", err)
+		}
+		if _, err := sd.Set("/path", float64(20), sd.GetCAS()); err != nil {
+			t.Fatal(err)
+		}
 		if val, _, err := sd.Get("/path"); err != nil {
 			t.Fatal(err)
-		} else if val.(float64) != float64(10) {
+		} else if val.(float64) != float64(20) {
 			t.Fatal("failed safedict")
-		} else {
-			if _, err := sd.Set("/path", float64(20), sd.GetCAS()); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := sd.Set("/path", float64(20), sd.GetCAS()); err != nil {
-				t.Fatal(err)
-			}
-			if val, _, err := sd.Get("/path"); err != nil {
-				t.Fatal(err)
-			} else if val.(float64) != float64(20) {
-				t.Fatal("failed safedict")
-			}
 		}
 	}
 }

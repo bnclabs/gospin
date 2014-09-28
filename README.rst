@@ -1,10 +1,10 @@
 Failsafe system dictionary for clustering.
 
 - dictionary is managed as JSON.
-- dictionary operations are idempotent, GetCAS(), GET(), SET(), DELETE() and
-  REST compatible corresponding to methods HEAD, GET, PUT and DELETE.
+- dictionary operations are idempotent, GetCAS(), GET(), SET(), DELETE() are
+  REST compatible HEAD, GET, PUT and DELETE methods.
 - JSON fields to GET(), SET() and DELETE() are specified as jsonpointer.
-- system dictionay is meant to hold configuration and context information for
+- system dictionary is meant to hold configuration and context information for
   the cluster.
 - fault tolerance is achieved using raft protocol using go-raft
   implementations.
